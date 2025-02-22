@@ -35,6 +35,9 @@ app.use('/api/coaches', coachRouter)
 app.use('/api/users', userRouter)
 app.use('/api/admin', adminRouter)
 
+//404
+
+
 
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {

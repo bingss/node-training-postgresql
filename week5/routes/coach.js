@@ -25,7 +25,7 @@ router.get('/', async (req, res, next) => {
     const coaches = await dataSource.getRepository('Coach')
                             .createQueryBuilder('coach')
                             .leftJoinAndSelect('coach.User', 'user')  // 連接 User 表
-                            .select(['coach.id', 'user.name  AS name'])
+                            .select(['coach.id AS id', 'user.name AS name'])
                             .offset(skip)  // 跳過前面的記錄
                             .limit(take)  // 返回指定數量的記錄
                             .getRawMany();
@@ -43,8 +43,9 @@ router.get('/', async (req, res, next) => {
 //取得教練詳細資訊 : /api/coaches/:coachId
 router.get('/:coachId', async (req, res, next) => {
   try {
-    const coachId = req.url.split('/').pop()
-
+    // const coachId = req.url.split('/').pop()
+    const {coachId} = req.params
+    
     if (isUndefined(coachId) || isNotValidString(coachId) || isNotValidUuid(coachId)) {
           logger.warn('欄位未填寫正確')
           res.status(400).json({
