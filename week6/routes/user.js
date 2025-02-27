@@ -6,6 +6,7 @@ const logger = require('../utils/logger')('Users')
 const { isUndefined, isNotValidString} = require('../utils/validators')
 const bcrypt = require('bcrypt')
 const generateJWT = require('../utils/generateJWT')
+const appError = require('../utils/appError')
 const auth = require('../middlewares/auth')({
   secret: config.get('secret').jwtSecret,
   userRepository: dataSource.getRepository('User'),
@@ -80,19 +81,13 @@ router.post('/login', async (req, res, next) => {
     const { email, password } = req.body
     if (isUndefined(email) || isNotValidString(email) || isUndefined(password) || isNotValidString(password)) {
       logger.warn('欄位未填寫正確')
-      res.status(400).json({
-        status: 'failed',
-        message: '欄位未填寫正確'
-      })
+      next(appError(400, '欄位未填寫正確'))
       return
     }
-    console.log(password, password.length);
+
     if (!passwordPattern.test(password)) {
       logger.warn('密碼不符合規則，需要包含英文數字大小寫，最短8個字，最長16個字')
-      res.status(400).json({
-        status: 'failed',
-        message: '密碼不符合規則，需要包含英文數字大小寫，最短8個字，最長16個字'
-      })
+      next(appError(400, '密碼不符合規則，需要包含英文數字大小寫，最短8個字，最長16個字'))
       return
     }
     const userRepository = dataSource.getRepository('User')
@@ -102,19 +97,13 @@ router.post('/login', async (req, res, next) => {
     })
 
     if (!existingUser) {
-      res.status(400).json({
-        status: 'failed',
-        message: '使用者不存在或密碼輸入錯誤'
-      })
+      next(appError(400, '使用者不存在或密碼輸入錯誤'))
       return
     }
     logger.info(`使用者資料: ${JSON.stringify(existingUser)}`)
     const isMatch = await bcrypt.compare(password, existingUser.password)
     if (!isMatch) {
-      res.status(400).json({
-        status: 'failed',
-        message: '使用者不存在或密碼輸入錯誤'
-      })
+      next(appError(400, '使用者不存在或密碼輸入錯誤'))
       return
     }
     const token = await generateJWT({
@@ -132,6 +121,7 @@ router.post('/login', async (req, res, next) => {
         }
       }
     })
+
   } catch (error) {
     logger.error('登入錯誤:', error)
     next(error)
@@ -167,10 +157,7 @@ router.put('/profile', auth, async (req, res, next) => {
     const namePattern = /^[\u4e00-\u9fffa-zA-Z0-9]{2,10}$/ //最少2個字，最多10個字，不可包含任何特殊符號與空白
     if (isUndefined(name) || isNotValidString(name) || !namePattern.test(name)) {
       logger.warn('欄位未填寫正確')
-      res.status(400).json({
-        status: 'failed',
-        message: '欄位未填寫正確'
-      })
+      next(appError(400, '欄位未填寫正確'))
       return
     }
     const userRepository = dataSource.getRepository('User')
@@ -181,10 +168,7 @@ router.put('/profile', auth, async (req, res, next) => {
       }
     })
     if (user.name === name) {
-      res.status(400).json({
-        status: 'failed',
-        message: '使用者名稱未變更'
-      })
+      next(appError(400, '使用者名稱未變更'))
       return
     }
     const updatedResult = await userRepository.update({
@@ -194,10 +178,7 @@ router.put('/profile', auth, async (req, res, next) => {
       name
     })
     if (updatedResult.affected === 0) {
-      res.status(400).json({
-        status: 'failed',
-        message: '更新使用者失敗'
-      })
+      next(appError(400, '更新使用者失敗'))
       return
     }
     // const result = await userRepository.findOne({

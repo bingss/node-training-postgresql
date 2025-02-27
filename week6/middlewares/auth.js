@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken')
+const appError = require('../utils/appError')
 
 const PERMISSION_DENIED_STATUS_CODE = 401
 const FailedMessageMap = {
@@ -7,20 +8,14 @@ const FailedMessageMap = {
   missing: '請先登入'
 }
 
-function generateError (status, message) {
-  const error = new Error(message)
-  error.status = status
-  return error
-}
-
 function formatVerifyError (jwtError) {
   let result
   switch (jwtError.name) {
     case 'TokenExpiredError':
-      result = generateError(PERMISSION_DENIED_STATUS_CODE, FailedMessageMap.expired)
+      result = appError(PERMISSION_DENIED_STATUS_CODE, FailedMessageMap.expired)
       break
     default:
-      result = generateError(PERMISSION_DENIED_STATUS_CODE, FailedMessageMap.invalid)
+      result = appError(PERMISSION_DENIED_STATUS_CODE, FailedMessageMap.invalid)
       break
   }
   return result
@@ -58,13 +53,13 @@ module.exports = ({
       !req.headers.authorization.startsWith('Bearer')
     ) {
       logger.warn('[AuthV2] Missing authorization header.')
-      next(generateError(PERMISSION_DENIED_STATUS_CODE, FailedMessageMap.missing))
+      next(appError(PERMISSION_DENIED_STATUS_CODE, FailedMessageMap.missing))
       return
     }
     const [, token] = req.headers.authorization.split(' ')
     if (!token) {
       logger.warn('[AuthV2] Missing token.')
-      next(generateError(PERMISSION_DENIED_STATUS_CODE, FailedMessageMap.missing))
+      next(appError(PERMISSION_DENIED_STATUS_CODE, FailedMessageMap.missing))
       return
     }
     try {
@@ -72,7 +67,7 @@ module.exports = ({
       const verifyResult = await verifyJWT(token, secret)
       const user = await userRepository.findOneBy({ id: verifyResult.id })
       if (!user) {
-        next(generateError(PERMISSION_DENIED_STATUS_CODE, FailedMessageMap.invalid))
+        next(appError(PERMISSION_DENIED_STATUS_CODE, FailedMessageMap.invalid))
         return
       }
       req.user = user //驗證通過，將 user 資訊存入 req.user

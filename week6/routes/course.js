@@ -5,6 +5,7 @@ const router = express.Router()
 const config = require('../config/index')
 const { dataSource } = require('../db/data-source')
 const logger = require('../utils/logger')('Course')
+const appError = require('../utils/appError')
 const auth = require('../middlewares/auth')({
   secret: config.get('secret').jwtSecret,
   userRepository: dataSource.getRepository('User'),
@@ -63,10 +64,7 @@ router.post('/:courseId', auth, async (req, res, next) => {
     const { courseId } = req.params
     if (isNotValidUuid(courseId) || isUndefined(courseId) || isNotValidString(courseId)) {
       logger.warn('欄位未填寫正確')
-      res.status(400).json({
-        status: 'failed',
-        message: '欄位未填寫正確'
-      })
+      next(appError(400, '欄位未填寫正確'))
       return
     }
     const courseRepo = dataSource.getRepository('Course')
@@ -76,10 +74,7 @@ router.post('/:courseId', auth, async (req, res, next) => {
       }
     })
     if (!course) {
-      res.status(400).json({
-        status: 'failed',
-        message: 'ID錯誤'
-      })
+      next(appError(400, 'ID錯誤'))
       return
     }
     const creditPurchaseRepo = dataSource.getRepository('CreditPurchase')
@@ -87,14 +82,12 @@ router.post('/:courseId', auth, async (req, res, next) => {
     const userCourseBooking = await courseBookingRepo.findOne({
       where: {
         user_id: id,
-        course_id: courseId
+        course_id: courseId,
+        cancelledAt: IsNull()
       }
     })
     if (userCourseBooking) {
-      res.status(400).json({
-        status: 'failed',
-        message: '已經報名過此課程'
-      })
+      next(appError(400, '已經報名過此課程'))
       return
     }
     const userCredit = await creditPurchaseRepo.sum('purchased_credits', {
@@ -113,16 +106,10 @@ router.post('/:courseId', auth, async (req, res, next) => {
       }
     })
     if (userUsedCredit >= userCredit) {
-      res.status(400).json({
-        status: 'failed',
-        message: '已無可使用堂數'
-      })
+      next(appError(400, '已無可使用堂數'))
       return
     } else if (courseBookedCount >= course.max_participants) {
-      res.status(400).json({
-        status: 'failed',
-        message: '已達最大參加人數，無法參加'
-      })
+      next(appError(400, '已達最大參加人數，無法參加'))
       return
     }
     const newCourseBooking = await courseBookingRepo.create({
@@ -147,10 +134,7 @@ router.delete('/:courseId', auth, async (req, res, next) => {
     const { courseId } = req.params
     if (isNotValidUuid(courseId) || isUndefined(courseId) || isNotValidString(courseId)) {
       logger.warn('欄位未填寫正確')
-      res.status(400).json({
-        status: 'failed',
-        message: '欄位未填寫正確'
-      })
+      next(appError(400, '欄位未填寫正確'))
       return
     }
     const courseBookingRepo = dataSource.getRepository('CourseBooking')
@@ -162,10 +146,7 @@ router.delete('/:courseId', auth, async (req, res, next) => {
       }
     })
     if (!userCourseBooking) {
-      res.status(400).json({
-        status: 'failed',
-        message: '課程不存在'
-      })
+      next(appError(400, '課程不存在'))
       return
     }
     const cancelResult = await courseBookingRepo.update(
@@ -179,10 +160,7 @@ router.delete('/:courseId', auth, async (req, res, next) => {
       }
     )
     if (cancelResult.affected === 0) {
-      res.status(400).json({
-        status: 'failed',
-        message: '取消失敗'
-      })
+      next(appError(400, '取消失敗'))
       return
     }
     res.status(200).json({

@@ -38,16 +38,37 @@ app.use('/api/admin', adminRouter)
 app.use('/api/courses', courseRouter)
 
 //404
+app.use((req, res, next) => {
+  res.status(404).json({
+    status: 'error',
+    message: "無此路由",
+  })
+  return
+});
 
 
-
-// eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
-  req.log.error(err)
+  req.log.error(err);
+  if (err.status) {
+    res.status(err.status).json({
+      status: 'failed',
+      message: err.message,
+    });
+    return;
+  }
   res.status(500).json({
     status: 'error',
-    message: '伺服器錯誤'
-  })
-})
+    message: '伺服器錯誤',
+  });
+});
+
+// // eslint-disable-next-line no-unused-vars
+// app.use((err, req, res, next) => {
+//   req.log.error(err)
+//   res.status(500).json({
+//     status: 'error',
+//     message: '伺服器錯誤'
+//   })
+// })
 
 module.exports = app

@@ -9,6 +9,7 @@ const auth = require('../middlewares/auth')({
   userRepository: dataSource.getRepository('User'),
   logger
 })
+const appError = require('../utils/appError')
 const isCoach = require('../middlewares/isCoach')
 
 //新增教練課程資料
@@ -28,10 +29,7 @@ router.post('/coaches/courses', auth, isCoach, async (req, res, next) => {
       isUndefined(maxParticipants) || isNotValidInteger(maxParticipants) ||
       isUndefined(meetingUrl) || isNotValidString(meetingUrl) || !meetingUrl.startsWith('https')) {
       logger.warn('欄位未填寫正確')
-      res.status(400).json({
-        status: 'failed',
-        message: '欄位未填寫正確'
-      })
+      next(appError(400, '欄位未填寫正確'))
       return
     }
     const userRepository = dataSource.getRepository('User')
@@ -42,17 +40,11 @@ router.post('/coaches/courses', auth, isCoach, async (req, res, next) => {
     logger.warn(existingUser)
     if (!existingUser) {
       logger.warn('使用者不存在')
-      res.status(400).json({
-        status: 'failed',
-        message: '使用者不存在'
-      })
+      next(appError(400, '使用者不存在'))
       return
     } else if (existingUser.role !== 'COACH') {
       logger.warn('使用者尚未成為教練')
-      res.status(400).json({
-        status: 'failed',
-        message: '使用者尚未成為教練'
-      })
+      next(appError(400, '使用者尚未成為教練'))
       return
     }
     const courseRepo = dataSource.getRepository('Course')
@@ -91,10 +83,7 @@ router.post('/coaches/:userId', async (req, res, next) => {
       isUndefined(experienceYears) || isNotValidInteger(experienceYears) || 
       isUndefined(description) || isNotValidString(description)) {
         logger.warn('欄位未填寫正確')
-        res.status(400).json({
-          status: 'failed',
-          message: '欄位未填寫正確'
-        })
+        next(appError(400, '欄位未填寫正確'))
         return
     }
     if (profileImageUrl && !isNotValidString(profileImageUrl) && !profileImageUrl.startsWith('https')) {
@@ -112,17 +101,11 @@ router.post('/coaches/:userId', async (req, res, next) => {
     })
     if (!existingUser) {
       logger.warn('使用者不存在')
-      res.status(400).json({
-        status: 'failed',
-        message: '使用者不存在'
-      })
+      next(appError(400, '使用者不存在'))
       return
     } else if (existingUser.role === 'COACH') {
       logger.warn('使用者已經是教練')
-      res.status(409).json({
-        status: 'failed',
-        message: '使用者已經是教練'
-      })
+      next(appError(400, '使用者已經是教練'))
       return
     }
     const coachRepo = dataSource.getRepository('Coach')
@@ -141,10 +124,7 @@ router.post('/coaches/:userId', async (req, res, next) => {
     logger.info(updatedUser)
     if (updatedUser.affected === 0) {
       logger.warn('更新使用者失敗')
-      res.status(400).json({
-        status: 'failed',
-        message: '更新使用者失敗'
-      })
+      next(appError(400, '更新使用者失敗'))
       return
     }
     const savedCoach = await coachRepo.save(newCoach)
@@ -182,10 +162,7 @@ router.put('/coaches/courses/:courseId', auth, isCoach, async (req, res, next) =
       isUndefined(maxParticipants) || isNotValidInteger(maxParticipants) ||
       isUndefined(meetingUrl) || isNotValidString(meetingUrl) || !meetingUrl.startsWith('https')) {
       logger.warn('欄位未填寫正確')
-      res.status(400).json({
-        status: 'failed',
-        message: '欄位未填寫正確'
-      })
+      next(appError(400, '欄位未填寫正確'))
       return
     }
     const courseRepo = dataSource.getRepository('Course')
@@ -194,10 +171,7 @@ router.put('/coaches/courses/:courseId', auth, isCoach, async (req, res, next) =
     })
     if (!existingCourse) {
       logger.warn('課程不存在')
-      res.status(400).json({
-        status: 'failed',
-        message: '課程不存在'
-      })
+      next(appError(400, '課程不存在'))
       return
     }
     const updateCourse = await courseRepo.update({
@@ -213,10 +187,7 @@ router.put('/coaches/courses/:courseId', auth, isCoach, async (req, res, next) =
     })
     if (updateCourse.affected === 0) {
       logger.warn('更新課程失敗')
-      res.status(400).json({
-        status: 'failed',
-        message: '更新課程失敗'
-      })
+      next(appError(400, '更新課程失敗'))
       return
     }
     const savedCourse = await courseRepo.findOne({

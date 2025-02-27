@@ -3,6 +3,7 @@ const config = require('../config/index')
 const router = express.Router()
 const { dataSource } = require('../db/data-source')
 const logger = require('../utils/logger')('CreditPackage')
+const appError = require('../utils/appError')
 const auth = require('../middlewares/auth')({
   secret: config.get('secret').jwtSecret,
   userRepository: dataSource.getRepository('User'),
@@ -33,10 +34,7 @@ router.post('/', async (req, res, next) => {
     if (isUndefined(name) || isNotValidString(name) ||
       isUndefined(creditAmount) || isNotValidInteger(creditAmount) ||
             isUndefined(price) || isNotValidInteger(price)) {
-      res.status(400).json({
-        status: 'failed',
-        message: '欄位未填寫正確'
-      })
+      next(appError(400, '欄位未填寫正確'))
       return
     }
     const creditPackageRepo = dataSource.getRepository('CreditPackage')
@@ -46,10 +44,7 @@ router.post('/', async (req, res, next) => {
       }
     })
     if (existCreditPackage.length > 0) {
-      res.status(409).json({
-        status: 'failed',
-        message: '資料重複'
-      })
+      next(appError(400, '資料重複'))
       return
     }
     const newCreditPurchase = await creditPackageRepo.create({
@@ -74,11 +69,8 @@ router.post('/:creditPackageId', auth, async (req, res, next) => {
     const { id } = req.user
     const { creditPackageId } = req.params
     if (isNotValidUuid(creditPackageId) || isUndefined(creditPackageId) || isNotValidString(creditPackageId)) {
-        logger.warn('欄位未填寫正確')
-        res.status(400).json({
-          status: 'failed',
-          message: 'ID錯誤'
-        })
+        logger.warn('ID錯誤')
+        next(appError(400, 'ID錯誤'))
         return
     }
     const creditPackageRepo = dataSource.getRepository('CreditPackage')
@@ -88,10 +80,7 @@ router.post('/:creditPackageId', auth, async (req, res, next) => {
       }
     })
     if (!creditPackage) {
-      res.status(400).json({
-        status: 'failed',
-        message: 'ID錯誤'
-      })
+      next(appError(400, 'ID錯誤'))
       return
     }
     const creditPurchaseRepo = dataSource.getRepository('CreditPurchase')
@@ -118,18 +107,12 @@ router.delete('/:creditPackageId', async (req, res, next) => {
   try {
     const { creditPackageId } = req.params
     if (isUndefined(creditPackageId) || isNotValidString(creditPackageId)) {
-      res.status(400).json({
-        status: 'failed',
-        message: '欄位未填寫正確'
-      })
+      next(appError(400, '欄位未填寫正確'))
       return
     }
     const result = await dataSource.getRepository('CreditPackage').delete(creditPackageId)
     if (result.affected === 0) {
-      res.status(400).json({
-        status: 'failed',
-        message: 'ID錯誤'
-      })
+      next(appError(400, 'ID錯誤'))
       return
     }
     res.status(200).json({

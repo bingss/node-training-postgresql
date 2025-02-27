@@ -3,6 +3,7 @@ const express = require('express')
 const router = express.Router()
 const { dataSource } = require('../db/data-source')
 const logger = require('../utils/logger')('Coach')
+const appError = require('../utils/appError')
 const { isUndefined ,isNotValidInteger, isNotValidString,isNotValidUuid } = require('../utils/validators');
 
 //取得教練列表 : /api/coaches/?per=?&page=?
@@ -13,10 +14,7 @@ router.get('/', async (req, res, next) => {
     if (isNaN(per) || isUndefined(per) || isNotValidInteger(per) || 
       isNaN(page) || isUndefined(page) || isNotValidInteger(page)) {
           logger.warn('欄位未填寫正確')
-          res.status(400).json({
-            status: 'failed',
-            message: '欄位未填寫正確'
-          })
+          next(appError(400, '欄位未填寫正確'))
           return
       }
 
@@ -48,10 +46,7 @@ router.get('/:coachId', async (req, res, next) => {
     
     if (isUndefined(coachId) || isNotValidString(coachId) || isNotValidUuid(coachId)) {
           logger.warn('欄位未填寫正確')
-          res.status(400).json({
-            status: 'failed',
-            message: '欄位未填寫正確'
-          })
+          next(appError(400, '欄位未填寫正確'))
           return
       }
 
@@ -64,10 +59,7 @@ router.get('/:coachId', async (req, res, next) => {
 
     if (!existingCoach) {
       logger.warn('找不到該教練')
-      res.status(400).json({
-        status: 'failed',
-        message: '找不到該教練'
-      })
+      next(appError(400, '找不到該教練'))
       return
     }
 
