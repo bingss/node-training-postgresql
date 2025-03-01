@@ -197,26 +197,35 @@ const getCoachCourses = catchErrorAsync(logger, async (req, res, next) => {
     .select([
         'course.id AS id',
         'course.name AS name',
-        'course.start_at AS start_at',
-        'course.end_at AS end_at',
+        'course.start_at AT TIME ZONE \'UTC\' AS start_at',
+        'course.end_at AT TIME ZONE \'UTC\' AS end_at',
         'course.max_participants AS max_participants'
     ])
-    .addSelect(`  
-        CASE
-            WHEN course.start_at > NOW() THEN '尚未開始'
-            WHEN course.start_at <= NOW() AND course.end_at >= NOW() THEN '報名中'
-            ELSE '已結束'
-        END`, 'status'
-    )  //根據開始結束時間判斷課程狀態
-    .addSelect('COUNT(courseBooking.id) FILTER (WHERE courseBooking.cancelledAt IS NULL)', 'participants')  // 計算 participants 數量
+    .addSelect('COUNT(courseBooking.id) FILTER (WHERE courseBooking.cancelledAt IS NULL)', 'participants')
     .where('course.user_id = :id', { id })
     .groupBy('course.id')
     .getRawMany();
+
+    //根據開始結束時間判斷課程狀態，改為用js判斷
+    // .addSelect(`  
+    //   CASE
+    //       WHEN (NOW() AT TIME ZONE 'GMT+8') < ((course.start_at AT TIME ZONE 'GMT+8') - INTERVAL '10 days') THEN '報名中'
+    //       WHEN (NOW() AT TIME ZONE 'GMT+8') >= ((course.start_at AT TIME ZONE 'GMT+8') - INTERVAL '10 days') AND (NOW() AT TIME ZONE 'GMT+8') < (course.start_at AT TIME ZONE 'GMT+8') THEN '尚未開始'
+    //       WHEN (NOW() AT TIME ZONE 'GMT+8') >= (course.start_at AT TIME ZONE 'GMT+8') AND (NOW() AT TIME ZONE 'GMT+8') <= (course.end_at AT TIME ZONE 'GMT+8') THEN '進行中'
+    //       ELSE '已結束'
+    //   END`, 'status'
+    // )  
 
   if (coachCourses.length === 0) {
     next(appError(400, '找不到教練'))
     return
   }
+
+  //暫時規則為10日前"報名中"，10日前到開始"尚未開始"，開始到結束"進行中"，結束後"已結束"
+  coachCourses.forEach(course => {
+    course.status = getCourseStatus(course)
+  })
+
   res.status(200).json({
     status: 'success',
     data: coachCourses
@@ -239,8 +248,8 @@ const getCoachCourseDetail = catchErrorAsync(logger, async (req, res, next) => {
         'skill.name AS skill_name',
         'course.name AS name',
         'course.description AS description',
-        'course.start_at AS start_at',
-        'course.end_at AS end_at',
+        'course.start_at AT TIME ZONE \'UTC\' AS start_at',
+        'course.end_at AT TIME ZONE \'UTC\' AS end_at',
         'course.max_participants AS max_participants'
     ])
     .where('course.user_id = :id', { id })
@@ -424,6 +433,7 @@ const getCoachRevenue = catchErrorAsync(logger, async (req, res, next) => {
 })
 
 
+
 module.exports = {
     postCourse,
     putCoachCourseDetail,
@@ -433,4 +443,23 @@ module.exports = {
     putCoachProfile,
     getCoachProfile,
     getCoachRevenue
+}
+
+function getCourseStatus(course) {
+  const now = new Date()
+  const nowGmt8 = new Date( now.getTime() + 8 * 60 * 60 * 1000 );
+  const startAt = new Date(course.start_at)
+  const endAt = new Date(course.end_at)
+  
+  const tenDaysBeforeStart = new Date(startAt)
+  tenDaysBeforeStart.setDate(startAt.getDate() - 10)
+  if (nowGmt8 < tenDaysBeforeStart) {
+    return '報名中'
+  } else if (nowGmt8 >= tenDaysBeforeStart && nowGmt8 < startAt) {
+    return '尚未開始'
+  } else if (nowGmt8 >= startAt && nowGmt8 <= endAt) {
+    return '進行中'
+  } else {
+    return '已結束'
+  }
 }

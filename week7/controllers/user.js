@@ -271,20 +271,25 @@ const getUserCourse = catchErrorAsync(logger, async (req, res, next) => {
                 'course.name AS name',
                 'courseBooking.course_id AS course_id',
                 'courseUser.name AS coach_name', 
-                'course.start_at AS start_at',
-                'course.end_at AS end_at',
+                'course.start_at AT TIME ZONE \'UTC\' AS start_at',
+                'course.end_at AT TIME ZONE \'UTC\' AS end_at',
                 'course.meeting_url AS meeting_url'
         ])
-        .addSelect(`  
-            CASE
-                WHEN course.start_at > NOW() THEN 'PENDING'
-                WHEN course.start_at <= NOW() AND course.end_at >= NOW() THEN 'PROGRESS'
-                ELSE 'COMPLETED'
-            END`, 'status'
-        )  //根據開始結束時間判斷課程狀態
         .where('courseBooking.user_id = :id', { id }) 
         .andWhere('courseBooking.cancelledAt IS NULL') //不顯示已取消課程?
         .getRawMany();
+
+        //根據開始結束時間判斷課程狀態，改為用js判斷
+        // .addSelect(`  
+        //     CASE
+        //         WHEN course.start_at > NOW() THEN 'PENDING'
+        //         WHEN course.start_at <= NOW() AND course.end_at >= NOW() THEN 'PROGRESS'
+        //         ELSE 'COMPLETED'
+        //     END`, 'status'
+        // )  
+    courseBookings.forEach(courseBooking => {
+        courseBooking.status = getcourseBookingStatus(courseBooking)
+    })
 
     res.status(200).json({
         status: 'success',
@@ -306,3 +311,19 @@ module.exports = {
     getUserCreditPackage,
     getUserCourse
 }
+
+
+function getcourseBookingStatus(courseBooking) {
+    const now = new Date()
+    const nowGmt8 = new Date( now.getTime() + 8 * 60 * 60 * 1000 );
+    const startAt = new Date(courseBooking.start_at)
+    const endAt = new Date(courseBooking.end_at)
+    
+    if (nowGmt8 < startAt) {
+      return 'PENDING'
+    } else if (nowGmt8 >= startAt && nowGmt8 <= endAt) {
+      return 'PROGRESS'
+    } else {
+      return 'COMPLETED'
+    }
+  }
